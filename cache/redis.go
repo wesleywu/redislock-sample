@@ -15,13 +15,12 @@ import (
 )
 
 const (
-	defaultPoolSize        = 40
 	defaultPoolMinIdle     = 5
 	defaultPoolMaxIdle     = 10
 	defaultPoolMaxActive   = 100
 	defaultPoolIdleTimeout = 10 * time.Second
 	defaultPoolWaitTimeout = 10 * time.Second
-	defaultPoolMaxLifeTime = 30 * time.Second
+	defaultPoolMaxLifeTime = 600 * time.Second
 	defaultMaxRetries      = -1
 )
 
@@ -68,7 +67,7 @@ func NewRedisCache(ctx context.Context, opt ...RedisCacheOpt) (*RedisCache, erro
 		Password:        config.Pass,
 		DB:              config.Db,
 		MaxRetries:      defaultMaxRetries,
-		PoolSize:        defaultPoolSize,
+		PoolSize:        config.MaxActive,
 		MinIdleConns:    config.MinIdle,
 		MaxIdleConns:    config.MaxIdle,
 		ConnMaxLifetime: config.MaxConnLifetime,
