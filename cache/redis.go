@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/bsm/redislock"
@@ -10,11 +11,14 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/text/gstr"
+	"github.com/gogf/gf/v2/util/gconv"
+	"github.com/gogf/gf/v2/util/gutil"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
 const (
+	ConfigNodeNameRedis    = "redis"
 	defaultPoolMinIdle     = 5
 	defaultPoolMaxIdle     = 10
 	defaultPoolMaxActive   = 100
@@ -54,9 +58,9 @@ func NewRedisCache(ctx context.Context, opt ...RedisCacheOpt) (*RedisCache, erro
 	} else {
 		cacheOpt = defaultOps
 	}
-	config, ok := gredis.GetConfig(cacheOpt.ConfigName)
-	if !ok {
-		g.Log().Warning(ctx, "Cannot get redis config from project config, try to initialize local redis connection")
+	config, err := getGfRedisConfig(ctx, cacheOpt.ConfigName)
+	if err != nil {
+		g.Log().Warningf(ctx, "%+v", err)
 		config, _ = gredis.ConfigFromMap(g.Map{
 			"Address": "127.0.0.1:6379",
 		})
@@ -144,4 +148,32 @@ func fillWithDefaultConfiguration(config *gredis.Config) {
 	if config.ReadTimeout == 0 {
 		config.ReadTimeout = -1
 	}
+}
+
+func getGfRedisConfig(ctx context.Context, group string) (*gredis.Config, error) {
+	var err error
+	if !g.Config().Available(ctx) {
+		wd, _ := os.Getwd()
+		return nil, gerror.Newf("no config available at current working directory %s", wd)
+	}
+	var (
+		configMap   map[string]interface{}
+		redisConfig *gredis.Config
+	)
+	if configMap, err = g.Config().Data(ctx); err != nil {
+		g.Log().Errorf(ctx, `retrieve config data map failed: %+v`, err)
+	}
+	if _, v := gutil.MapPossibleItemByKey(configMap, ConfigNodeNameRedis); v != nil {
+		configMap = gconv.Map(v)
+	}
+	if len(configMap) > 0 {
+		if v, ok := configMap[group]; ok {
+			redisConfig, err = gredis.ConfigFromMap(gconv.Map(v))
+			if err != nil {
+				return nil, err
+			}
+			return redisConfig, nil
+		}
+	}
+	return redisConfig, nil
 }
