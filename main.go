@@ -102,6 +102,10 @@ func processItem(ctx context.Context, redisCache *cache.RedisCache, itemKey stri
 		lockObtained = true
 	}
 
+	defer func(lock *redislock.Lock, ctx context.Context) {
+		_ = lock.Release(ctx)
+	}(lock, ctx)
+
 	// simulating processing
 	g.Log().Infof(ctx, "Processed itemKey %s", itemKey)
 	redisClient = redisCache.Client
@@ -144,8 +148,5 @@ func processItem(ctx context.Context, redisCache *cache.RedisCache, itemKey stri
 	time.Sleep(100 * time.Millisecond)
 	// end of processing
 
-	defer func(lock *redislock.Lock, ctx context.Context) {
-		_ = lock.Release(ctx)
-	}(lock, ctx)
 	return nil
 }
